@@ -11,7 +11,7 @@ This project has two equal objectives.
 
 **Geoeconomic applicability.** Every model here is grounded in a real, observable
 relationship between a geopolitical mechanism and a financial variable. The outputs
-are not academic — they are probability distributions over financial relevant at tradeable
+are not academic — they are probability distributions over price levels at tradeable
 horizons, designed to identify where standard market models misprice risk.
 
 **SDE construction and numerical methods mastery.** Each case is an exercise in
@@ -92,7 +92,7 @@ numerical technique to the base loop — nothing is reimplemented, only extended
 
 ## Cases
 
-### Case 1 — Brent Crude Under OPEC+ Production Discipline `[complete]`
+### Case 1 — Brent Crude Mean-Reversion Under OPEC+ Band Enforcement `[complete]`
 
 OPEC+ fiscal breakevens (~$70–75) and US shale breakevens (~$85–90) create a
 structural band enforced by proportional production responses. The proportionality
