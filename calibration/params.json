@@ -1,0 +1,14 @@
+{
+  "kappa": 0.3467,
+  "theta": 4.467172,
+  "sigma0": 0.258,
+  "alpha": 1.3896,
+  "theta_price": 87.11,
+  "lam": 4.1214,
+  "mu_j": -0.013339,
+  "sigma_j": 0.1052,
+  "calibrated_on": "2026-04-04",
+  "data_start": "2000-01-01",
+  "n_obs": 4648,
+  "note": "Euler-Maruyama approximate MLE. Jump days removed before OU fit."
+}
