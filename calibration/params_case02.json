@@ -1,0 +1,13 @@
+{
+  "mu": 0.16585,
+  "sigma": 0.1601,
+  "lam0": 8.9571,
+  "lam1": 26.8714,
+  "mu_j": 0.009447,
+  "sigma_j": 0.0408,
+  "calibrated_on": "2026-06-07",
+  "data_start": "2000-01-01",
+  "data_end": "2026-01-01",
+  "n_obs": 5459,
+  "note": "USD/TRY 2000-2026. Single lambda from full sample \u2014 calm/tension split produced lam1=0 due to sparse Yahoo TRY=X tension coverage. lam1 = lam0 x 3 (prior ratio). sigma_j capped at 0.15."
+}
