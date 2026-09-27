@@ -1,7 +1,7 @@
 """
 cases/02_em_fx_sanctions/model.py
 
-SDE for USD/RUB log-rate under sanctions shock.
+SDE for USD/TRY log-rate under sanctions shock.
 
 dX = μdt  +  σdW  +  J·dq(λ(t))
 
@@ -63,7 +63,7 @@ class SignalGenerator:
         self.state = state
 
 
-class USDRUBModel:
+class USDTRYModel:
 
     def __init__(self, params, signal):
         """
