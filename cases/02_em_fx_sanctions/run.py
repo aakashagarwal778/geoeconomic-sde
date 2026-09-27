@@ -6,9 +6,9 @@ calibration/params_case02.json. Falls back to prior values if
 calibration has not been run.
 
 Produces:
-  1. results/paths.png                 -- Monte Carlo path fan (calm vs tension)
-  2. results/prob_table.csv            -- Scenario probability table
-  3. results/distribution_comparison.png -- Calm vs tension distribution
+  1. results/paths.png                   -- Monte Carlo path fan (calm vs tension)
+  2. results/prob_table.csv              -- Scenario probability table
+  3. results/distribution_comparison.png -- Calm vs tension distribution at 1y
 
 Run calibration first:
     python calibration/estimate_case02.py
@@ -33,7 +33,7 @@ _spec = importlib.util.spec_from_file_location(
     "model", os.path.join(os.path.dirname(__file__), "model.py"))
 _mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
-USDRUBModel    = _mod.USDRUBModel
+USDTRYModel     = _mod.USDTRYModel
 SignalGenerator = _mod.SignalGenerator
 
 # ── Parameters ─────────────────────────────────────────────────
@@ -66,11 +66,14 @@ print(f"  lam0={PARAMS['lam0']}  lam1={PARAMS['lam1']}  mu_j={PARAMS['mu_j']}  s
 os.makedirs(os.path.join(os.path.dirname(__file__), 'results'), exist_ok=True)
 RESULTS = os.path.join(os.path.dirname(__file__), 'results')
 
-X0 = np.log(38.0)
-T  = 1.0
-dt = 1/252
-N  = 10_000
-DAY = 252
+SEED     = 7
+rng_plot = np.random.default_rng(SEED)
+
+X0       = np.log(38.0)
+T        = 1.0
+dt       = 1/252
+N        = 10_000
+HORIZON  = 252          # one-year step index — used for the distribution panel
 
 # ── Simulate calm and tension regimes ──────────────────────────
 signal_calm    = SignalGenerator(mode="simulate", p_escalate=0.01,
@@ -78,8 +81,8 @@ signal_calm    = SignalGenerator(mode="simulate", p_escalate=0.01,
 signal_tension = SignalGenerator(mode="simulate", p_escalate=0.01,
                                  p_deescalate=0.05, initial_state=1)
 
-prices_calm    = np.exp(solve(USDRUBModel(PARAMS, signal_calm),    X0, T, dt, N))
-prices_tension = np.exp(solve(USDRUBModel(PARAMS, signal_tension), X0, T, dt, N))
+prices_calm    = np.exp(solve(USDTRYModel(PARAMS, signal_calm),    X0, T, dt, N))
+prices_tension = np.exp(solve(USDTRYModel(PARAMS, signal_tension), X0, T, dt, N))
 
 n_steps = prices_calm.shape[0]
 t_axis  = np.linspace(0, T*252, n_steps)
@@ -94,7 +97,7 @@ for ax, prices, title, color in [
     (ax1, prices_calm,    "Calm regime  (s=0,  λ=λ₀)", '#1a6b8a'),
     (ax2, prices_tension, "Tension regime  (s=1,  λ=λ₁)", '#b03a2e'),
 ]:
-    for i in np.random.choice(N, 150, replace=False):
+    for i in rng_plot.choice(N, 150, replace=False):
         ax.plot(t_axis, prices[:,i], color=color, alpha=0.05, linewidth=0.5)
     pcts = np.percentile(prices, [5,25,50,75,95], axis=1)
     ax.fill_between(t_axis, pcts[0], pcts[4], color=color, alpha=0.10)
@@ -121,14 +124,20 @@ plt.close()
 print('Saved: results/paths.png')
 
 # ── 2. Probability table ───────────────────────────────────────
+# Horizons are step indices (1 step = 1 trading day). The 252-day row is the
+# one-year horizon reported in the distribution panel and the case document —
+# the two must be read off the same horizon.
+HORIZONS = [(30, '30d'), (60, '60d'), (90, '90d'),
+            (126, '6m'), (HORIZON, '1y')]
+
 rows = []
 for regime, prices in [('calm', prices_calm), ('tension', prices_tension)]:
-    for day in [30, 60, 90]:
-        px = prices[min(day, n_steps-1)]
+    for step, tag in HORIZONS:
+        px = prices[min(step, n_steps-1)]
         rows.append({
-            'scenario'  : f"{regime} {day}d",
-            'P(dep>5%)': f"{(px > thr_hi).mean():.1%}",
-            'P(app>5%)': f"{(px < thr_lo).mean():.1%}",
+            'scenario'  : f"{regime} {tag}",
+            'P(dep>5%)' : f"{(px > thr_hi).mean():.1%}",
+            'P(app>5%)' : f"{(px < thr_lo).mean():.1%}",
             'median'    : f"{np.median(px):.1f}",
             '5th pct'   : f"{np.percentile(px,5):.1f}",
             '95th pct'  : f"{np.percentile(px,95):.1f}",
@@ -139,9 +148,9 @@ print(df.to_string(index=False))
 df.to_csv(os.path.join(RESULTS, 'prob_table.csv'), index=False)
 print('Saved: results/prob_table.csv')
 
-# ── 3. Distribution comparison — calm vs tension at 90d ───────
-px_calm    = prices_calm[DAY]
-px_tension = prices_tension[DAY]
+# ── 3. Distribution comparison — calm vs tension at the 1-year horizon ──
+px_calm    = prices_calm[HORIZON]
+px_tension = prices_tension[HORIZON]
 
 x_lo = min(px_calm.min(), px_tension.min()) * 0.85
 x_hi = max(px_calm.max(), px_tension.max()) * 1.05
@@ -159,15 +168,14 @@ ax.plot(x, kde_c, color='#1a6b8a', linewidth=1.8, label='Calm regime (s=0)')
 ax.fill_between(x, kde_c, color='#1a6b8a', alpha=0.15)
 ax.plot(x, kde_t, color='#b03a2e', linewidth=1.8, label='Tension regime (s=1)')
 ax.fill_between(x, kde_t, color='#b03a2e', alpha=0.15)
-# no theta line for GBM drift model
+# no theta line — constant GBM drift, no mean-reversion level to mark
 
 col_labels = ['Regime', 'P(dep>5%)', 'P(app>5%)', 'Median', '95th pct']
-c90 = prices_calm[DAY]; t90 = prices_tension[DAY]
 table_data = [
-    ['Calm',    f"{(c90>thr_hi).mean():.1%}", f"{(c90<thr_lo).mean():.1%}",
-     f"{np.median(c90):.1f}", f"{np.percentile(c90,95):.1f}"],
-    ['Tension', f"{(t90>thr_hi).mean():.1%}", f"{(t90<thr_lo).mean():.1%}",
-     f"{np.median(t90):.1f}", f"{np.percentile(t90,95):.1f}"],
+    ['Calm',    f"{(px_calm>thr_hi).mean():.1%}", f"{(px_calm<thr_lo).mean():.1%}",
+     f"{np.median(px_calm):.1f}", f"{np.percentile(px_calm,95):.1f}"],
+    ['Tension', f"{(px_tension>thr_hi).mean():.1%}", f"{(px_tension<thr_lo).mean():.1%}",
+     f"{np.median(px_tension):.1f}", f"{np.percentile(px_tension,95):.1f}"],
 ]
 tbl = ax.table(cellText=table_data, colLabels=col_labels,
                bbox=[0.48, 0.74, 0.51, 0.22])
